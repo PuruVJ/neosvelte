@@ -1,6 +1,6 @@
 // import AnotherComponent from './AnotherComp.svelte?react';
 // import Component from './App.svelte?react';
-import { lazy } from 'react';
+import { lazy, useEffect, useState } from 'react';
 
 import './App.css';
 
@@ -8,9 +8,22 @@ const Component = lazy(() => import('./App.svelte?react'));
 const AnotherComponent = lazy(() => import('./AnotherComp.svelte?react'));
 
 function App() {
+	const [value, setValue] = useState(0);
+
+	useEffect(() => {
+		console.log(value);
+	}, [value]);
+
 	return (
 		<div className='App'>
-			<Component duration={1000} initialVal={0.4} callback={() => console.log('Hello world')}>
+			<button onClick={() => setValue((v) => v + 1)}> Increemtn </button>
+
+			<Component
+				duration={1000}
+				initialVal={0.4}
+				callback={() => console.log('Hello world')}
+				value={value}
+			>
 				Bwhahahhahahahahah
 			</Component>
 

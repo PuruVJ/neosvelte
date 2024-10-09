@@ -1,16 +1,43 @@
 <script>
 	import { onMount } from 'svelte';
-	import { cubicOut } from 'svelte/easing';
 	import { tweened } from 'svelte/motion';
 	import AnotherComp from './AnotherComp.svelte';
 
-	export let duration;
-	export let initialVal;
+	import { flip } from 'svelte/animate';
+	import { blur, crossfade, draw, fade, fly, scale, slide } from 'svelte/transition';
+	import {
+		backIn,
+		backInOut,
+		backOut,
+		bounceIn,
+		bounceInOut,
+		bounceOut,
+		circIn,
+		circInOut,
+		circOut,
+		cubicIn,
+		cubicInOut,
+		cubicOut,
+		elasticIn,
+		elasticInOut,
+		elasticOut,
+		expoIn,
+		expoInOut,
+		expoOut,
+		linear,
+		quadIn,
+		quadInOut,
+		quadOut,
+	} from 'svelte/easing';
+	import { spring, tweened } from 'svelte/motion';
 
-	export let value;
+	export let duration = 1000;
+	export let initialVal = 0.4;
 
 	/** @type {() => void}*/
-	export let callback;
+	export let callback = () => {};
+
+	console.log(callback);
 
 	let isRendered = false;
 
@@ -27,9 +54,7 @@
 	});
 </script>
 
-{value}
-
-<progress value={$progress} />
+<progress value={$progress}></progress>
 
 <button on:click={() => progress.set(0)}> 0% </button>
 

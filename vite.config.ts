@@ -5,7 +5,7 @@ import { svelte, vitePreprocess } from '@sveltejs/vite-plugin-svelte';
 import react from '@vitejs/plugin-react';
 import virtual from 'vite-plugin-virtual';
 
-var plugin = (): Plugin => {
+var svelte_to_react = (): Plugin => {
 	return {
 		name: 'svelte-react',
 		enforce: 'pre',
@@ -21,10 +21,10 @@ var plugin = (): Plugin => {
 			if (id.endsWith('.neosvelte-react')) {
 				const importPath = id.replace('.neosvelte-react', '');
 				return `
-        import { reactWrapper } from 'virtual:neosvelte:react';
+        import { react_wrapper } from 'virtual:neosvelte:./react.svelte.js';
         import Component from '${importPath}';
         
-        export default reactWrapper(Component);`;
+        export default react_wrapper(Component);`;
 			}
 		},
 	};
@@ -32,72 +32,60 @@ var plugin = (): Plugin => {
 
 function neosvelte(): Plugin[] {
 	return [
-		plugin(),
+		svelte_to_react(),
 		svelte({ preprocess: vitePreprocess() }),
 		{
 			enforce: 'pre',
 			...virtual({
-				'virtual:neosvelte:react': `
-	import { useEffect, useLayoutEffect, useRef } from 'react';
-	import { jsxDEV as _jsx } from 'react/jsx-dev-runtime';
-	
-	/** @param {string} str */
-	const camelToKebabCase = (str) => str.replace(/([a-z])([A-Z])/g, '$1-$2').toLowerCase();
-	
-	/** @param {Record<string, any>} props */
-	function getPropsAndEvents(props) {
-		const propsOnly = {};
-		const events = {};
-	
-		for (const [key, value] of Object.entries(props)) {
-			if (key.startsWith('on')) {
-				events[camelToKebabCase(key.replace(/^on/, ''))] = value;
-			} else {
-				propsOnly[key] = value;
-			}
+				'virtual:neosvelte:./react.svelte.js': `
+	// @ts-check
+import { useEffect, useRef, createElement } from 'react';
+import { mount, unmount } from 'svelte';
+
+/** @param {Record<string, any>} react_props */
+function normalize_props(react_props) {
+	const props = {};
+
+	for (const [key, value] of Object.entries(react_props)) {
+		if (key.startsWith('on')) {
+			props[key.toLowerCase()] = value;
+		} else {
+			props[key] = value;
 		}
-	
-		return [propsOnly, events];
 	}
-	
-	/**
-	 * @param {import('svelte').SvelteComponentTyped} Component
-	 * @returns {import('react').FC<Record<string, any>}
-	 */
-	export const reactWrapper = (Component) => (props) => {
-		const ref = useRef();
-	
-		/** @type {React.MutableRefObject<import('svelte').SvelteComponentTyped>} */
-		const instanceRef = useRef();
-	
-		/** @type {Map<string, () => void>} */
-		const eventMap = new Map();
-	
-		useLayoutEffect(() => {
-			const [propsOnly, events] = getPropsAndEvents(props);
-	
-			instanceRef.current = new Component({
-				target: ref.current,
-				props: propsOnly,
-			});
-	
-			for (const [key, value] of Object.entries(events)) {
-				eventMap.set(key, instanceRef.current.$on(key, value));
-			}
-	
-			return () => {
-				instanceRef.current.$destroy();
-	
-				for (const [, cb] of eventMap) {
-					cb();
-				}
-			};
-		}, []);
-	
-		useEffect(() => instanceRef.current.$set(props), [props]);
-	
-		return _jsx('div', { style: { display: 'contents' }, ref, children: props.children });
-	};
+
+	return props;
+}
+
+/**
+ * @param {import('svelte').Component} Component
+ * @returns {import('react').FC<Record<string, any>>}
+ */
+export const react_wrapper = (Component) => (props) => {
+	const target = useRef();
+
+	let reactive_props = $state(normalize_props(props));
+
+	useEffect(() => {
+		if (!target.current) return;
+
+		const instance = mount(Component, { target: target.current, props: reactive_props });
+
+		return () => {
+			unmount(instance);
+		};
+	}, []);
+
+	useEffect(() => {
+		Object.assign(reactive_props, normalize_props(props));
+	}, [props]);
+
+	return createElement('div', {
+		style: { display: 'contents' },
+		ref: target,
+		children: props.children,
+	});
+};
 	`,
 			}),
 		},
